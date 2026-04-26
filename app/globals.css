@@ -39,12 +39,25 @@ h1 {
   margin: 10px 0 8px;
   line-height: 0.95;
 }
+h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
 .sub { color: var(--muted); margin: 0; }
-.feed { display: grid; gap: 12px; }
-.articleCard { padding: 18px; }
-.articleCard h2 { margin: 12px 0 8px; font-size: 1.35rem; line-height: 1.1; }
-.articleCard p { margin: 0 0 14px; color: var(--muted); }
-.pill {
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.statCard { padding: 18px; }
+.statCard span { color: var(--muted); display: block; }
+.statCard strong { display: block; margin-top: 8px; font-size: 1.9rem; }
+.focusCard, .emptyCard { padding: 20px; }
+.focusTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.pill, .metaChip {
   display: inline-block;
   padding: 8px 12px;
   border-radius: 999px;
@@ -53,19 +66,29 @@ h1 {
   color: var(--text);
   font-size: 0.8rem;
 }
-.metaRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
+.summary { margin: 0 0 14px; color: var(--muted); font-size: 1rem; line-height: 1.45; }
+.sourceRow { margin-bottom: 16px; }
+.sourceRow span { color: var(--muted); font-size: 0.92rem; }
+.actionGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
-.metaRow span { color: var(--muted); font-size: 0.92rem; }
-.metaRow button {
+.actionGrid button {
   border: 0;
-  border-radius: 14px;
-  min-height: 42px;
-  padding: 0 16px;
+  border-radius: 16px;
+  min-height: 52px;
+  font-weight: 700;
+  color: var(--text);
+}
+.actionGrid .secondary {
+  background: rgba(255,255,255,0.06);
+}
+.actionGrid .primary {
+  grid-column: 1 / -1;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: #081018;
-  font-weight: 700;
+}
+@media (max-width: 520px) {
+  .statsGrid { grid-template-columns: 1fr 1fr; }
 }
