@@ -9,12 +9,15 @@ type ArticleCard = {
   source: string;
   summary: string;
   readMinutes: number;
+  url?: string;
+  createdAt?: string;
 };
 
 type FeedState = {
   saved: string[];
   dismissed: string[];
   read: string[];
+  inbox: ArticleCard[];
 };
 
 const seedCards: ArticleCard[] = [
@@ -24,7 +27,8 @@ const seedCards: ArticleCard[] = [
     title: 'Why protein timing probably matters less than total intake',
     source: 'Examine / review article',
     summary: 'A high-signal, non-hysterical piece on what actually matters for muscle growth and what mostly turns into noise.',
-    readMinutes: 9
+    readMinutes: 9,
+    url: 'https://example.com/protein-timing'
   },
   {
     id: 'representation-geometry',
@@ -32,7 +36,8 @@ const seedCards: ArticleCard[] = [
     title: 'The hidden geometry of representation in large democracies',
     source: 'Longform essay',
     summary: 'A readable deep dive into why institutional scaling quietly changes political power and personal agency.',
-    readMinutes: 14
+    readMinutes: 14,
+    url: 'https://example.com/representation-geometry'
   },
   {
     id: 'aging-clocks',
@@ -40,7 +45,8 @@ const seedCards: ArticleCard[] = [
     title: 'Aging clocks and what they really measure',
     source: 'Research paper',
     summary: 'The kind of paper worth opening instead of opening X for the 40th time and learning absolutely nothing.',
-    readMinutes: 18
+    readMinutes: 18,
+    url: 'https://example.com/aging-clocks'
   },
   {
     id: 'attention-rituals',
@@ -48,71 +54,88 @@ const seedCards: ArticleCard[] = [
     title: 'Attention rituals for people who live on the internet',
     source: 'Essay',
     summary: 'Practical thinking about replacing default stimulation loops with higher-signal habits that still feel good.',
-    readMinutes: 7
+    readMinutes: 7,
+    url: 'https://example.com/attention-rituals'
   }
 ];
 
 function loadState(): FeedState {
   if (typeof window === 'undefined') {
-    return { saved: [], dismissed: [], read: [] };
+    return { saved: [], dismissed: [], read: [], inbox: [] };
   }
   try {
     const raw = window.localStorage.getItem('good-scroll-state');
-    return raw ? (JSON.parse(raw) as FeedState) : { saved: [], dismissed: [], read: [] };
+    return raw ? (JSON.parse(raw) as FeedState) : { saved: [], dismissed: [], read: [], inbox: [] };
   } catch {
-    return { saved: [], dismissed: [], read: [] };
+    return { saved: [], dismissed: [], read: [], inbox: [] };
   }
 }
 
 export default function HomePage() {
   const [feedState, setFeedState] = useState<FeedState>(() => loadState());
-  const [cursor, setCursor] = useState(0);
+  const [title, setTitle] = useState('');
+  const [url, setUrl] = useState('');
+  const [category, setCategory] = useState<ArticleCard['category']>('Ideas');
 
   function persist(next: FeedState) {
     setFeedState(next);
     window.localStorage.setItem('good-scroll-state', JSON.stringify(next));
   }
 
-  const availableCards = useMemo(
-    () => seedCards.filter((card) => !feedState.dismissed.includes(card.id)),
-    [feedState.dismissed]
+  const cards = useMemo(() => [...feedState.inbox, ...seedCards], [feedState.inbox]);
+  const visibleCards = useMemo(
+    () => cards.filter((card) => !feedState.dismissed.includes(card.id)),
+    [cards, feedState.dismissed]
   );
 
-  const currentCard = availableCards[Math.min(cursor, Math.max(availableCards.length - 1, 0))] ?? null;
   const savedCount = feedState.saved.length;
   const readCount = feedState.read.length;
 
-  function markSaved() {
-    if (!currentCard) return;
+  function markSaved(id: string) {
     const next = {
       ...feedState,
-      saved: feedState.saved.includes(currentCard.id) ? feedState.saved : [...feedState.saved, currentCard.id]
+      saved: feedState.saved.includes(id) ? feedState.saved : [...feedState.saved, id]
     };
     persist(next);
   }
 
-  function markRead() {
-    if (!currentCard) return;
+  function markRead(id: string) {
     const next = {
       ...feedState,
-      read: feedState.read.includes(currentCard.id) ? feedState.read : [...feedState.read, currentCard.id]
+      read: feedState.read.includes(id) ? feedState.read : [...feedState.read, id]
     };
     persist(next);
   }
 
-  function dismissCard() {
-    if (!currentCard) return;
+  function dismissCard(id: string) {
     const next = {
       ...feedState,
-      dismissed: feedState.dismissed.includes(currentCard.id) ? feedState.dismissed : [...feedState.dismissed, currentCard.id]
+      dismissed: feedState.dismissed.includes(id) ? feedState.dismissed : [...feedState.dismissed, id]
     };
     persist(next);
-    setCursor(0);
   }
 
-  function nextCard() {
-    if (!availableCards.length) return;
-    setCursor((current) => (current + 1) % availableCards.length);
+  function addLink() {
+    if (!title.trim()) return;
+    const nextCard: ArticleCard = {
+      id: `inbox-${Date.now()}`,
+      category,
+      title: title.trim(),
+      source: url.trim() || 'Manual inbox',
+      summary: 'Saved manually to your private good-scroll feed.',
+      readMinutes: 8,
+      url: url.trim() || undefined,
+      createdAt: new Date().toISOString()
+    };
+
+    persist({
+      ...feedState,
+      inbox: [nextCard, ...feedState.inbox]
+    });
+
+    setTitle('');
+    setUrl('');
+    setCategory('Ideas');
   }
 
   return (
@@ -120,7 +143,7 @@ export default function HomePage() {
       <section className="hero card">
         <p className="eyebrow">good scroll</p>
         <h1>Your private anti-sludge feed.</h1>
-        <p className="sub">One good thing at a time. No junk, no infinite-scroll brain melt.</p>
+        <p className="sub">Actually scrollable now — but only with things that are worth your attention.</p>
       </section>
 
       <section className="statsGrid">
@@ -134,34 +157,64 @@ export default function HomePage() {
         </article>
       </section>
 
-      {currentCard ? (
-        <section className="card focusCard">
-          <div className="focusTop">
-            <span className="pill">{currentCard.category}</span>
-            <span className="metaChip">{currentCard.readMinutes} min</span>
+      <section className="card inboxCard">
+        <div className="cardHeader">
+          <div>
+            <p className="eyebrow">saved-link inbox</p>
+            <h2>Drop something good in</h2>
           </div>
+        </div>
+        <div className="inboxForm">
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL (optional)" />
+          <select value={category} onChange={(e) => setCategory(e.target.value as ArticleCard['category'])}>
+            <option>Ideas</option>
+            <option>Bio</option>
+            <option>Policy</option>
+            <option>Paper</option>
+            <option>Essay</option>
+          </select>
+          <button className="primary" onClick={addLink}>Add to feed</button>
+        </div>
+      </section>
 
-          <h2>{currentCard.title}</h2>
-          <p className="summary">{currentCard.summary}</p>
-
-          <div className="sourceRow">
-            <span>{currentCard.source}</span>
-          </div>
-
-          <div className="actionGrid">
-            <button className="secondary" onClick={markSaved}>Save</button>
-            <button className="secondary" onClick={markRead}>Mark read</button>
-            <button className="secondary" onClick={dismissCard}>Dismiss</button>
-            <button className="primary" onClick={nextCard}>Next good thing</button>
-          </div>
-        </section>
-      ) : (
-        <section className="card emptyCard">
-          <p className="eyebrow">feed cleared</p>
-          <h2>No more good things queued.</h2>
-          <p className="sub">That’s a good problem. Time to seed more signal.</p>
-        </section>
-      )}
+      <section className="feed">
+        {visibleCards.length ? (
+          visibleCards.map((card) => {
+            const isSaved = feedState.saved.includes(card.id);
+            const isRead = feedState.read.includes(card.id);
+            return (
+              <article className="card articleCard" key={card.id}>
+                <div className="cardTop">
+                  <span className="pill">{card.category}</span>
+                  <span className="metaChip">{card.readMinutes} min</span>
+                </div>
+                <h2>{card.title}</h2>
+                <p className="summary">{card.summary}</p>
+                <div className="sourceRow">
+                  <span>{card.source}</span>
+                  {card.url ? <a href={card.url} target="_blank" rel="noreferrer">Open</a> : null}
+                </div>
+                <div className="actionGrid">
+                  <button className={isSaved ? 'secondary active' : 'secondary'} onClick={() => markSaved(card.id)}>
+                    {isSaved ? 'Saved' : 'Save'}
+                  </button>
+                  <button className={isRead ? 'secondary active' : 'secondary'} onClick={() => markRead(card.id)}>
+                    {isRead ? 'Read' : 'Mark read'}
+                  </button>
+                  <button className="secondary" onClick={() => dismissCard(card.id)}>Dismiss</button>
+                </div>
+              </article>
+            );
+          })
+        ) : (
+          <section className="card emptyCard">
+            <p className="eyebrow">feed cleared</p>
+            <h2>No more good things queued.</h2>
+            <p className="sub">That’s a good problem. Drop another link into the inbox.</p>
+          </section>
+        )}
+      </section>
     </main>
   );
 }
