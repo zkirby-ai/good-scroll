@@ -20,6 +20,7 @@ body {
     linear-gradient(180deg, var(--bg2), var(--bg));
 }
 button, input, select { font: inherit; }
+a { color: inherit; }
 .shell { width: min(100%, 560px); margin: 0 auto; padding: 16px 12px 40px; }
 .card {
   background: var(--panel);
@@ -51,6 +52,9 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   background: rgba(255,255,255,0.05);
   color: var(--text);
   padding: 0 14px;
+}
+.inboxForm input::placeholder {
+  color: rgba(159,176,208,0.72);
 }
 .feed { display: grid; gap: 12px; }
 .articleCard, .emptyCard { padding: 20px; }
@@ -99,6 +103,31 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
 .inboxForm .primary {
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: #081018;
+}
+.inboxForm .primary[disabled] {
+  opacity: 0.7;
+}
+.helperText {
+  margin: 12px 2px 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.feedList {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.feedList ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.feedList li {
+  color: var(--muted);
+  word-break: break-word;
+  font-size: 0.92rem;
 }
 @media (max-width: 520px) {
   .statsGrid { grid-template-columns: 1fr 1fr; }

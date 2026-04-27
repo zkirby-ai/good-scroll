@@ -18,6 +18,14 @@ type FeedState = {
   dismissed: string[];
   read: string[];
   inbox: ArticleCard[];
+  rssFeeds: string[];
+};
+
+type RssImportItem = {
+  title: string;
+  link?: string;
+  pubDate?: string;
+  contentSnippet?: string;
 };
 
 const seedCards: ArticleCard[] = [
@@ -59,15 +67,52 @@ const seedCards: ArticleCard[] = [
   }
 ];
 
+function emptyState(): FeedState {
+  return { saved: [], dismissed: [], read: [], inbox: [], rssFeeds: [] };
+}
+
 function loadState(): FeedState {
   if (typeof window === 'undefined') {
-    return { saved: [], dismissed: [], read: [], inbox: [] };
+    return emptyState();
   }
   try {
     const raw = window.localStorage.getItem('good-scroll-state');
-    return raw ? (JSON.parse(raw) as FeedState) : { saved: [], dismissed: [], read: [], inbox: [] };
+    if (!raw) return emptyState();
+    const parsed = JSON.parse(raw) as Partial<FeedState>;
+    return {
+      saved: parsed.saved ?? [],
+      dismissed: parsed.dismissed ?? [],
+      read: parsed.read ?? [],
+      inbox: parsed.inbox ?? [],
+      rssFeeds: parsed.rssFeeds ?? []
+    };
   } catch {
-    return { saved: [], dismissed: [], read: [], inbox: [] };
+    return emptyState();
+  }
+}
+
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+}
+
+function inferCategory(item: RssImportItem): ArticleCard['category'] {
+  const haystack = `${item.title} ${item.contentSnippet ?? ''}`.toLowerCase();
+  if (/(study|trial|pubmed|biology|protein|health|sleep|metabolism|nutrition)/.test(haystack)) return 'Bio';
+  if (/(policy|state|election|governance|institution|law|regulation)/.test(haystack)) return 'Policy';
+  if (/(paper|journal|arxiv|preprint|doi|research)/.test(haystack)) return 'Paper';
+  if (/(essay|culture|attention|internet|mindset|society)/.test(haystack)) return 'Essay';
+  return 'Ideas';
+}
+
+function sourceLabelFromUrl(input: string) {
+  try {
+    return new URL(input).hostname.replace(/^www\./, '');
+  } catch {
+    return 'RSS import';
   }
 }
 
@@ -76,6 +121,9 @@ export default function HomePage() {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [category, setCategory] = useState<ArticleCard['category']>('Ideas');
+  const [feedUrl, setFeedUrl] = useState('');
+  const [feedStatus, setFeedStatus] = useState<string>('');
+  const [isImportingFeed, setIsImportingFeed] = useState(false);
 
   function persist(next: FeedState) {
     setFeedState(next);
@@ -138,6 +186,57 @@ export default function HomePage() {
     setCategory('Ideas');
   }
 
+  async function importFeed() {
+    const trimmed = feedUrl.trim();
+    if (!trimmed || isImportingFeed) return;
+
+    setIsImportingFeed(true);
+    setFeedStatus('Importing feed...');
+
+    try {
+      const response = await fetch('/api/rss', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ feedUrl: trimmed })
+      });
+
+      const payload = (await response.json()) as { items?: RssImportItem[]; error?: string };
+
+      if (!response.ok || !payload.items?.length) {
+        setFeedStatus(payload.error || 'Could not import that feed.');
+        return;
+      }
+
+      const importedCards = payload.items.map((item, index) => ({
+        id: `rss-${slugify(item.link || item.title)}-${Date.now()}-${index}`,
+        category: inferCategory(item),
+        title: item.title,
+        source: sourceLabelFromUrl(trimmed),
+        summary: item.contentSnippet || 'Imported from RSS for your reading queue.',
+        readMinutes: 8,
+        url: item.link,
+        createdAt: item.pubDate || new Date().toISOString()
+      }));
+
+      const existingUrls = new Set(feedState.inbox.map((card) => card.url).filter(Boolean));
+      const deduped = importedCards.filter((card) => !card.url || !existingUrls.has(card.url));
+
+      const next = {
+        ...feedState,
+        inbox: [...deduped, ...feedState.inbox],
+        rssFeeds: feedState.rssFeeds.includes(trimmed) ? feedState.rssFeeds : [trimmed, ...feedState.rssFeeds]
+      };
+
+      persist(next);
+      setFeedStatus(deduped.length ? `Imported ${deduped.length} items from ${sourceLabelFromUrl(trimmed)}.` : 'That feed imported, but everything was already in your queue.');
+      setFeedUrl('');
+    } catch {
+      setFeedStatus('Could not import that feed right now.');
+    } finally {
+      setIsImportingFeed(false);
+    }
+  }
+
   return (
     <main className="shell">
       <section className="hero card">
@@ -176,6 +275,38 @@ export default function HomePage() {
           </select>
           <button className="primary" onClick={addLink}>Add to feed</button>
         </div>
+      </section>
+
+      <section className="card inboxCard">
+        <div className="cardHeader">
+          <div>
+            <p className="eyebrow">rss import</p>
+            <h2>Pull a feed into the queue</h2>
+            <p className="sub">Bring in the latest few items from any RSS or Atom feed, then skim the good stuff here.</p>
+          </div>
+        </div>
+        <div className="inboxForm">
+          <input
+            value={feedUrl}
+            onChange={(e) => setFeedUrl(e.target.value)}
+            placeholder="https://example.com/feed.xml"
+            inputMode="url"
+          />
+          <button className="primary" onClick={importFeed} disabled={isImportingFeed}>
+            {isImportingFeed ? 'Importing...' : 'Import feed'}
+          </button>
+        </div>
+        {feedStatus ? <p className="helperText">{feedStatus}</p> : null}
+        {feedState.rssFeeds.length ? (
+          <div className="feedList">
+            <p className="eyebrow">recent feed sources</p>
+            <ul>
+              {feedState.rssFeeds.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
 
       <section className="feed">
