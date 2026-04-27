@@ -28,6 +28,8 @@ type RssImportItem = {
   contentSnippet?: string;
 };
 
+type ViewMode = 'feed' | 'queue' | 'focus';
+
 const seedCards: ArticleCard[] = [
   {
     id: 'protein-timing',
@@ -124,6 +126,7 @@ export default function HomePage() {
   const [feedUrl, setFeedUrl] = useState('');
   const [feedStatus, setFeedStatus] = useState<string>('');
   const [isImportingFeed, setIsImportingFeed] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('feed');
 
   function persist(next: FeedState) {
     setFeedState(next);
@@ -135,6 +138,17 @@ export default function HomePage() {
     () => cards.filter((card) => !feedState.dismissed.includes(card.id)),
     [cards, feedState.dismissed]
   );
+  const savedCards = useMemo(
+    () => feedState.saved
+      .map((id) => visibleCards.find((card) => card.id === id))
+      .filter((card): card is ArticleCard => Boolean(card)),
+    [feedState.saved, visibleCards]
+  );
+  const unreadSavedCards = useMemo(
+    () => savedCards.filter((card) => !feedState.read.includes(card.id)),
+    [savedCards, feedState.read]
+  );
+  const focusedCard = unreadSavedCards[0] ?? savedCards[0] ?? null;
 
   const savedCount = feedState.saved.length;
   const readCount = feedState.read.length;
@@ -158,7 +172,8 @@ export default function HomePage() {
   function dismissCard(id: string) {
     const next = {
       ...feedState,
-      dismissed: feedState.dismissed.includes(id) ? feedState.dismissed : [...feedState.dismissed, id]
+      dismissed: feedState.dismissed.includes(id) ? feedState.dismissed : [...feedState.dismissed, id],
+      saved: feedState.saved.filter((savedId) => savedId !== id)
     };
     persist(next);
   }
@@ -237,6 +252,35 @@ export default function HomePage() {
     }
   }
 
+  function renderArticleCard(card: ArticleCard) {
+    const isSaved = feedState.saved.includes(card.id);
+    const isRead = feedState.read.includes(card.id);
+
+    return (
+      <article className="card articleCard" key={card.id}>
+        <div className="cardTop">
+          <span className="pill">{card.category}</span>
+          <span className="metaChip">{card.readMinutes} min</span>
+        </div>
+        <h2>{card.title}</h2>
+        <p className="summary">{card.summary}</p>
+        <div className="sourceRow">
+          <span>{card.source}</span>
+          {card.url ? <a href={card.url} target="_blank" rel="noreferrer">Open</a> : null}
+        </div>
+        <div className="actionGrid">
+          <button className={isSaved ? 'secondary active' : 'secondary'} onClick={() => markSaved(card.id)}>
+            {isSaved ? 'Saved' : 'Save'}
+          </button>
+          <button className={isRead ? 'secondary active' : 'secondary'} onClick={() => markRead(card.id)}>
+            {isRead ? 'Read' : 'Mark read'}
+          </button>
+          <button className="secondary" onClick={() => dismissCard(card.id)}>Dismiss</button>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <main className="shell">
       <section className="hero card">
@@ -254,6 +298,25 @@ export default function HomePage() {
           <span>Read</span>
           <strong>{readCount}</strong>
         </article>
+      </section>
+
+      <section className="card focusSummaryCard">
+        <div>
+          <p className="eyebrow">focused reading</p>
+          <h2>Turn saved links into an actual queue.</h2>
+          <p className="sub">
+            {unreadSavedCards.length
+              ? `${unreadSavedCards.length} unread saved ${unreadSavedCards.length === 1 ? 'item is' : 'items are'} ready for focused reading.`
+              : savedCards.length
+                ? 'Your saved queue is fully read. Keep it around for reference or add something new.'
+                : 'Save a few strong links, then use focus mode instead of drifting back to sludge.'}
+          </p>
+        </div>
+        <div className="viewToggle" role="tablist" aria-label="Reading views">
+          <button className={viewMode === 'feed' ? 'toggleButton active' : 'toggleButton'} onClick={() => setViewMode('feed')}>Feed</button>
+          <button className={viewMode === 'queue' ? 'toggleButton active' : 'toggleButton'} onClick={() => setViewMode('queue')}>Queue</button>
+          <button className={viewMode === 'focus' ? 'toggleButton active' : 'toggleButton'} onClick={() => setViewMode('focus')}>Focus</button>
+        </div>
       </section>
 
       <section className="card inboxCard">
@@ -309,43 +372,66 @@ export default function HomePage() {
         ) : null}
       </section>
 
-      <section className="feed">
-        {visibleCards.length ? (
-          visibleCards.map((card) => {
-            const isSaved = feedState.saved.includes(card.id);
-            const isRead = feedState.read.includes(card.id);
-            return (
-              <article className="card articleCard" key={card.id}>
-                <div className="cardTop">
-                  <span className="pill">{card.category}</span>
-                  <span className="metaChip">{card.readMinutes} min</span>
-                </div>
-                <h2>{card.title}</h2>
-                <p className="summary">{card.summary}</p>
-                <div className="sourceRow">
-                  <span>{card.source}</span>
-                  {card.url ? <a href={card.url} target="_blank" rel="noreferrer">Open</a> : null}
-                </div>
-                <div className="actionGrid">
-                  <button className={isSaved ? 'secondary active' : 'secondary'} onClick={() => markSaved(card.id)}>
-                    {isSaved ? 'Saved' : 'Save'}
-                  </button>
-                  <button className={isRead ? 'secondary active' : 'secondary'} onClick={() => markRead(card.id)}>
-                    {isRead ? 'Read' : 'Mark read'}
-                  </button>
-                  <button className="secondary" onClick={() => dismissCard(card.id)}>Dismiss</button>
-                </div>
-              </article>
-            );
-          })
-        ) : (
-          <section className="card emptyCard">
-            <p className="eyebrow">feed cleared</p>
-            <h2>No more good things queued.</h2>
-            <p className="sub">That’s a good problem. Drop another link into the inbox.</p>
-          </section>
-        )}
-      </section>
+      {viewMode === 'focus' ? (
+        <section className="focusLayout">
+          {focusedCard ? (
+            <article className="card focusCard">
+              <div className="cardTop">
+                <span className="pill">{focusedCard.category}</span>
+                <span className="metaChip">{focusedCard.readMinutes} min</span>
+              </div>
+              <p className="eyebrow">up next</p>
+              <h2>{focusedCard.title}</h2>
+              <p className="summary">{focusedCard.summary}</p>
+              <div className="focusMeta">
+                <span>{focusedCard.source}</span>
+                <span>{feedState.read.includes(focusedCard.id) ? 'Already read' : 'Unread and queued'}</span>
+              </div>
+              <div className="focusActions">
+                {focusedCard.url ? (
+                  <a className="primaryLink" href={focusedCard.url} target="_blank" rel="noreferrer">Open article</a>
+                ) : null}
+                <button className={feedState.read.includes(focusedCard.id) ? 'secondary active' : 'secondary'} onClick={() => markRead(focusedCard.id)}>
+                  {feedState.read.includes(focusedCard.id) ? 'Read' : 'Mark read'}
+                </button>
+                <button className="secondary" onClick={() => dismissCard(focusedCard.id)}>Remove from queue</button>
+              </div>
+            </article>
+          ) : (
+            <section className="card emptyCard">
+              <p className="eyebrow">focus mode</p>
+              <h2>No saved items queued yet.</h2>
+              <p className="sub">Save a few links from the feed, then come back here for a calmer one-at-a-time reading pass.</p>
+            </section>
+          )}
+        </section>
+      ) : null}
+
+      {viewMode === 'queue' ? (
+        <section className="feed">
+          {savedCards.length ? savedCards.map((card) => renderArticleCard(card)) : (
+            <section className="card emptyCard">
+              <p className="eyebrow">saved queue</p>
+              <h2>Nothing saved yet.</h2>
+              <p className="sub">Tap save on anything genuinely worth returning to. That becomes the calm reading queue.</p>
+            </section>
+          )}
+        </section>
+      ) : null}
+
+      {viewMode === 'feed' ? (
+        <section className="feed">
+          {visibleCards.length ? (
+            visibleCards.map((card) => renderArticleCard(card))
+          ) : (
+            <section className="card emptyCard">
+              <p className="eyebrow">feed cleared</p>
+              <h2>No more good things queued.</h2>
+              <p className="sub">That’s a good problem. Drop another link into the inbox.</p>
+            </section>
+          )}
+        </section>
+      ) : null}
     </main>
   );
 }

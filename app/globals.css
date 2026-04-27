@@ -21,6 +21,9 @@ body {
 }
 button, input, select { font: inherit; }
 a { color: inherit; }
+button {
+  cursor: pointer;
+}
 .shell { width: min(100%, 560px); margin: 0 auto; padding: 16px 12px 40px; }
 .card {
   background: var(--panel);
@@ -42,7 +45,7 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
 .statCard { padding: 18px; }
 .statCard span { color: var(--muted); display: block; }
 .statCard strong { display: block; margin-top: 8px; font-size: 1.9rem; }
-.inboxCard { padding: 18px; margin-bottom: 12px; }
+.inboxCard, .focusSummaryCard { padding: 18px; margin-bottom: 12px; }
 .cardHeader { margin-bottom: 12px; }
 .inboxForm { display: grid; gap: 10px; }
 .inboxForm input, .inboxForm select {
@@ -56,8 +59,8 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
 .inboxForm input::placeholder {
   color: rgba(159,176,208,0.72);
 }
-.feed { display: grid; gap: 12px; }
-.articleCard, .emptyCard { padding: 20px; }
+.feed, .focusLayout { display: grid; gap: 12px; }
+.articleCard, .emptyCard, .focusCard { padding: 20px; }
 .cardTop {
   display: flex;
   justify-content: space-between;
@@ -87,20 +90,20 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
 }
-.actionGrid button, .inboxForm .primary {
+.actionGrid button, .inboxForm .primary, .focusActions button, .primaryLink, .toggleButton {
   border: 0;
   border-radius: 16px;
   min-height: 52px;
   font-weight: 700;
   color: var(--text);
 }
-.actionGrid .secondary {
+.actionGrid .secondary, .focusActions .secondary, .toggleButton {
   background: rgba(255,255,255,0.06);
 }
-.actionGrid .secondary.active {
+.actionGrid .secondary.active, .focusActions .secondary.active, .toggleButton.active {
   background: rgba(158,216,255,0.22);
 }
-.inboxForm .primary {
+.inboxForm .primary, .primaryLink {
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: #081018;
 }
@@ -129,7 +132,39 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   word-break: break-word;
   font-size: 0.92rem;
 }
+.viewToggle {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+.toggleButton {
+  min-height: 44px;
+}
+.focusCard {
+  background: linear-gradient(180deg, rgba(158,216,255,0.08), rgba(20, 28, 54, 0.86));
+}
+.focusMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.focusActions {
+  display: grid;
+  gap: 10px;
+}
+.primaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  padding: 0 16px;
+}
 @media (max-width: 520px) {
   .statsGrid { grid-template-columns: 1fr 1fr; }
   .actionGrid { grid-template-columns: 1fr; }
+  .focusMeta { flex-direction: column; }
 }
