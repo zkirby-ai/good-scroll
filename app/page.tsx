@@ -19,6 +19,8 @@ type FeedState = {
   read: string[];
   inbox: ArticleCard[];
   rssFeeds: string[];
+  favoriteSources: string[];
+  mutedSources: string[];
 };
 
 type RssImportItem = {
@@ -35,6 +37,15 @@ type RankedArticleCard = ArticleCard & {
 
 type ViewMode = 'feed' | 'queue' | 'focus';
 type FeedFilter = 'all' | 'unread' | 'saved';
+
+type SourceStats = {
+  name: string;
+  total: number;
+  unread: number;
+  saved: number;
+  isFavorite: boolean;
+  isMuted: boolean;
+};
 
 const seedCards: ArticleCard[] = [
   {
@@ -84,7 +95,7 @@ const categoryWeights: Record<ArticleCard['category'], number> = {
 };
 
 function emptyState(): FeedState {
-  return { saved: [], dismissed: [], read: [], inbox: [], rssFeeds: [] };
+  return { saved: [], dismissed: [], read: [], inbox: [], rssFeeds: [], favoriteSources: [], mutedSources: [] };
 }
 
 function loadState(): FeedState {
@@ -100,7 +111,9 @@ function loadState(): FeedState {
       dismissed: parsed.dismissed ?? [],
       read: parsed.read ?? [],
       inbox: parsed.inbox ?? [],
-      rssFeeds: parsed.rssFeeds ?? []
+      rssFeeds: parsed.rssFeeds ?? [],
+      favoriteSources: parsed.favoriteSources ?? [],
+      mutedSources: parsed.mutedSources ?? []
     };
   } catch {
     return emptyState();
@@ -186,6 +199,11 @@ function scoreCard(card: ArticleCard, feedState: FeedState): RankedArticleCard {
     reasons.push('You saved it');
   }
 
+  if (feedState.favoriteSources.includes(card.source)) {
+    score += 18;
+    reasons.push('Favored source');
+  }
+
   score += categoryWeights[card.category];
   reasons.push(`${card.category} signal`);
 
@@ -242,9 +260,36 @@ export default function HomePage() {
   }
 
   const cards = useMemo(() => [...feedState.inbox, ...seedCards], [feedState.inbox]);
+  const sourceStats = useMemo<SourceStats[]>(() => {
+    const bucket = new Map<string, SourceStats>();
+
+    cards.forEach((card) => {
+      const current = bucket.get(card.source) ?? {
+        name: card.source,
+        total: 0,
+        unread: 0,
+        saved: 0,
+        isFavorite: feedState.favoriteSources.includes(card.source),
+        isMuted: feedState.mutedSources.includes(card.source)
+      };
+
+      current.total += 1;
+      if (!feedState.read.includes(card.id)) current.unread += 1;
+      if (feedState.saved.includes(card.id)) current.saved += 1;
+      current.isFavorite = feedState.favoriteSources.includes(card.source);
+      current.isMuted = feedState.mutedSources.includes(card.source);
+      bucket.set(card.source, current);
+    });
+
+    return [...bucket.values()].sort((a, b) => {
+      if (a.isMuted !== b.isMuted) return Number(a.isMuted) - Number(b.isMuted);
+      if (a.unread !== b.unread) return b.unread - a.unread;
+      return a.name.localeCompare(b.name);
+    });
+  }, [cards, feedState.favoriteSources, feedState.mutedSources, feedState.read, feedState.saved]);
   const visibleCards = useMemo(
-    () => cards.filter((card) => !feedState.dismissed.includes(card.id)),
-    [cards, feedState.dismissed]
+    () => cards.filter((card) => !feedState.dismissed.includes(card.id) && !feedState.mutedSources.includes(card.source)),
+    [cards, feedState.dismissed, feedState.mutedSources]
   );
   const rankedCards = useMemo(
     () => visibleCards
@@ -278,6 +323,7 @@ export default function HomePage() {
   const savedCount = feedState.saved.length;
   const readCount = feedState.read.length;
   const unreadCount = unreadCards.length;
+  const mutedCount = feedState.mutedSources.length;
 
   function markSaved(id: string) {
     const next = {
@@ -300,6 +346,30 @@ export default function HomePage() {
       ...feedState,
       dismissed: feedState.dismissed.includes(id) ? feedState.dismissed : [...feedState.dismissed, id],
       saved: feedState.saved.filter((savedId) => savedId !== id)
+    };
+    persist(next);
+  }
+
+  function toggleFavoriteSource(source: string) {
+    const isFavorite = feedState.favoriteSources.includes(source);
+    const next = {
+      ...feedState,
+      favoriteSources: isFavorite
+        ? feedState.favoriteSources.filter((item) => item !== source)
+        : [...feedState.favoriteSources, source],
+      mutedSources: feedState.mutedSources.filter((item) => item !== source)
+    };
+    persist(next);
+  }
+
+  function toggleMutedSource(source: string) {
+    const isMuted = feedState.mutedSources.includes(source);
+    const next = {
+      ...feedState,
+      mutedSources: isMuted
+        ? feedState.mutedSources.filter((item) => item !== source)
+        : [...feedState.mutedSources, source],
+      favoriteSources: feedState.favoriteSources.filter((item) => item !== source)
     };
     persist(next);
   }
@@ -399,6 +469,8 @@ export default function HomePage() {
   function renderArticleCard(card: RankedArticleCard) {
     const isSaved = feedState.saved.includes(card.id);
     const isRead = feedState.read.includes(card.id);
+    const isFavoriteSource = feedState.favoriteSources.includes(card.source);
+    const isMutedSource = feedState.mutedSources.includes(card.source);
 
     return (
       <article className="card articleCard" key={card.id}>
@@ -415,6 +487,14 @@ export default function HomePage() {
         <div className="sourceRow">
           <span>{card.source}</span>
           {card.url ? <a href={card.url} target="_blank" rel="noreferrer">Open</a> : null}
+        </div>
+        <div className="sourceActionRow">
+          <button className={isFavoriteSource ? 'secondary active' : 'secondary'} onClick={() => toggleFavoriteSource(card.source)}>
+            {isFavoriteSource ? 'Favored source' : 'Favor source'}
+          </button>
+          <button className={isMutedSource ? 'secondary active' : 'secondary'} onClick={() => toggleMutedSource(card.source)}>
+            {isMutedSource ? 'Unmute source' : 'Mute source'}
+          </button>
         </div>
         <div className="actionGrid">
           <button className={isSaved ? 'secondary active' : 'secondary'} onClick={() => markSaved(card.id)}>
@@ -437,7 +517,7 @@ export default function HomePage() {
         <p className="sub">Actually scrollable now — but only with things that are worth your attention.</p>
       </section>
 
-      <section className="statsGrid statsGridTriple">
+      <section className="statsGrid statsGridQuad">
         <article className="card statCard">
           <span>Unread</span>
           <strong>{unreadCount}</strong>
@@ -449,6 +529,10 @@ export default function HomePage() {
         <article className="card statCard">
           <span>Read</span>
           <strong>{readCount}</strong>
+        </article>
+        <article className="card statCard">
+          <span>Muted sources</span>
+          <strong>{mutedCount}</strong>
         </article>
       </section>
 
@@ -467,6 +551,38 @@ export default function HomePage() {
           </div>
         </section>
       ) : null}
+
+      <section className="card sourceBoardCard">
+        <div className="cardHeader">
+          <div>
+            <p className="eyebrow">source curation</p>
+            <h2>Teach the feed what keeps earning attention.</h2>
+            <p className="sub">Favor sources that consistently hit. Mute the ones that start feeling like sludge, even if they technically fit the category.</p>
+          </div>
+        </div>
+        {sourceStats.length ? (
+          <div className="sourceBoardList">
+            {sourceStats.map((source) => (
+              <article className="sourceBoardItem" key={source.name}>
+                <div>
+                  <h3>{source.name}</h3>
+                  <p>{source.unread} unread • {source.saved} saved • {source.total} total</p>
+                </div>
+                <div className="sourceBoardActions">
+                  <button className={source.isFavorite ? 'secondary active' : 'secondary'} onClick={() => toggleFavoriteSource(source.name)}>
+                    {source.isFavorite ? 'Favored' : 'Favor'}
+                  </button>
+                  <button className={source.isMuted ? 'secondary active' : 'secondary'} onClick={() => toggleMutedSource(source.name)}>
+                    {source.isMuted ? 'Muted' : 'Mute'}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="helperText">Add or import a few links and source controls will show up here.</p>
+        )}
+      </section>
 
       <section className="card focusSummaryCard">
         <div>
@@ -612,7 +728,7 @@ export default function HomePage() {
             <div>
               <p className="eyebrow">feed filters</p>
               <h2>Skim by intent, not just by whatever is next.</h2>
-              <p className="sub">The feed now auto-ranks for signal, freshness, and likely usefulness so the best stuff rises first.</p>
+              <p className="sub">The feed now auto-ranks for signal, freshness, source preference, and likely usefulness so the best stuff rises first.</p>
             </div>
             <div className="viewToggle compact" role="tablist" aria-label="Feed filters">
               <button className={feedFilter === 'all' ? 'toggleButton active' : 'toggleButton'} onClick={() => setFeedFilter('all')}>
