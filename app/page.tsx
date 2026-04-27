@@ -35,7 +35,7 @@ type RankedArticleCard = ArticleCard & {
   reasons: string[];
 };
 
-type ViewMode = 'feed' | 'queue' | 'focus';
+type ViewMode = 'feed' | 'digest' | 'queue' | 'focus';
 type FeedFilter = 'all' | 'unread' | 'saved';
 
 type SourceStats = {
@@ -317,6 +317,41 @@ export default function HomePage() {
     () => savedCards.filter((card) => !feedState.read.includes(card.id)),
     [savedCards, feedState.read]
   );
+  const dailyDigestCards = useMemo(() => {
+    const picked = new Set<string>();
+    const digest: RankedArticleCard[] = [];
+
+    const quickWin = unreadCards.find((card) => card.readMinutes <= 10);
+    if (quickWin) {
+      digest.push(quickWin);
+      picked.add(quickWin.id);
+    }
+
+    const deeperRead = unreadCards.find((card) => !picked.has(card.id) && card.readMinutes > 10);
+    if (deeperRead) {
+      digest.push(deeperRead);
+      picked.add(deeperRead.id);
+    }
+
+    const serendipityCard = unreadCards.find((card) => !picked.has(card.id) && card.category === 'Ideas');
+    if (serendipityCard) {
+      digest.push(serendipityCard);
+      picked.add(serendipityCard.id);
+    }
+
+    unreadCards.forEach((card) => {
+      if (digest.length >= 4 || picked.has(card.id)) return;
+      digest.push(card);
+      picked.add(card.id);
+    });
+
+    return digest;
+  }, [unreadCards]);
+  const digestMinutes = useMemo(
+    () => dailyDigestCards.reduce((total, card) => total + card.readMinutes, 0),
+    [dailyDigestCards]
+  );
+  const digestLead = dailyDigestCards[0] ?? null;
   const focusedCard = unreadSavedCards[0] ?? savedCards[0] ?? null;
   const topCard = rankedCards[0] ?? null;
 
@@ -598,6 +633,7 @@ export default function HomePage() {
         </div>
         <div className="viewToggle" role="tablist" aria-label="Reading views">
           <button className={viewMode === 'feed' ? 'toggleButton active' : 'toggleButton'} onClick={() => setViewMode('feed')}>Feed</button>
+          <button className={viewMode === 'digest' ? 'toggleButton active' : 'toggleButton'} onClick={() => setViewMode('digest')}>Digest</button>
           <button className={viewMode === 'queue' ? 'toggleButton active' : 'toggleButton'} onClick={() => setViewMode('queue')}>Queue</button>
           <button className={viewMode === 'focus' ? 'toggleButton active' : 'toggleButton'} onClick={() => setViewMode('focus')}>Focus</button>
         </div>
@@ -670,6 +706,75 @@ export default function HomePage() {
           </div>
         ) : null}
       </section>
+
+
+      {viewMode === 'digest' ? (
+        <section className="feed digestSection">
+          <section className="card digestHero">
+            <div>
+              <p className="eyebrow">daily digest</p>
+              <h2>A calmer handful for right now.</h2>
+              <p className="sub">
+                {dailyDigestCards.length
+                  ? `${dailyDigestCards.length} hand-picked unread ${dailyDigestCards.length === 1 ? 'item' : 'items'} for about ${digestMinutes} min of better internet.`
+                  : 'Nothing unread is waiting right now. Import a feed or drop in another good link.'}
+              </p>
+            </div>
+            {digestLead ? (
+              <div className="digestHeroMeta">
+                <span className="rankChip">Lead pick</span>
+                <span className="reasonText">{digestLead.reasons.join(' • ')}</span>
+              </div>
+            ) : null}
+          </section>
+
+          {dailyDigestCards.length ? (
+            dailyDigestCards.map((card, index) => {
+              const label = index === 0
+                ? 'Lead pick'
+                : card.readMinutes <= 10
+                  ? 'Quick win'
+                  : card.category === 'Ideas'
+                    ? 'Serendipity slot'
+                    : 'Worth the session';
+
+              return (
+                <article className="card articleCard digestCard" key={card.id}>
+                  <div className="digestCardHeader">
+                    <span className="digestLabel">{label}</span>
+                    <span className="metaChip">{card.readMinutes} min</span>
+                  </div>
+                  <h2>{card.title}</h2>
+                  <p className="summary">{card.summary}</p>
+                  <div className="cardReasonRow">
+                    <span className="pill">{card.category}</span>
+                    <span className="reasonText">{card.reasons.join(' • ')}</span>
+                  </div>
+                  <div className="sourceRow">
+                    <span>{card.source}</span>
+                    {card.url ? <a href={card.url} target="_blank" rel="noreferrer">Open</a> : null}
+                  </div>
+                  <div className="actionGrid">
+                    <button className={feedState.saved.includes(card.id) ? 'secondary active' : 'secondary'} onClick={() => markSaved(card.id)}>
+                      {feedState.saved.includes(card.id) ? 'Saved' : 'Save'}
+                    </button>
+                    <button className={feedState.read.includes(card.id) ? 'secondary active' : 'secondary'} onClick={() => markRead(card.id)}>
+                      {feedState.read.includes(card.id) ? 'Read' : 'Mark read'}
+                    </button>
+                    <button className="secondary" onClick={() => dismissCard(card.id)}>Dismiss</button>
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <section className="card emptyCard">
+              <p className="eyebrow">digest clear</p>
+              <h2>No unread picks right now.</h2>
+              <p className="sub">You either cleared the queue or haven’t fed it yet. Both are fixable.</p>
+            </section>
+          )}
+        </section>
+      ) : null}
 
       {viewMode === 'focus' ? (
         <section className="focusLayout">

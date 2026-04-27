@@ -380,7 +380,7 @@ h2 {
 
 .viewToggle {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin-top: 16px;
 }
@@ -415,6 +415,49 @@ h2 {
   gap: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(232, 230, 226, 0.94));
   box-shadow: var(--shadow-md);
+}
+
+.digestSection {
+  gap: 12px;
+}
+
+.digestHero,
+.digestCard {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(237, 236, 234, 0.95));
+}
+
+.digestHero {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+  box-shadow: var(--shadow-md);
+}
+
+.digestHeroMeta,
+.digestCardHeader,
+.digestLabel {
+  display: inline-flex;
+  align-items: center;
+}
+
+.digestHeroMeta,
+.digestCardHeader {
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.digestLabel {
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--text-2);
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .sourceBoardList {
