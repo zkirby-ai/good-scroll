@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { KeyboardEvent, useMemo, useState } from 'react';
 
 type ArticleCard = {
   id: string;
@@ -132,6 +132,46 @@ function sourceLabelFromUrl(input: string) {
   }
 }
 
+function titleFromUrl(input: string) {
+  try {
+    const parsed = new URL(input);
+    const raw = parsed.pathname.split('/').filter(Boolean).pop() || parsed.hostname.replace(/^www\./, '');
+    return raw
+      .replace(/[-_]+/g, ' ')
+      .replace(/\.[a-z0-9]+$/i, '')
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .slice(0, 80);
+  } catch {
+    return '';
+  }
+}
+
+function parseQuickAddInput(input: string) {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const urlMatch = trimmed.match(/https?:\/\/\S+/i);
+  if (urlMatch) {
+    const parsedUrl = urlMatch[0].replace(/[),.;]+$/, '');
+    const titleOnly = trimmed.replace(urlMatch[0], '').replace(/[—–|-]+/g, ' ').trim();
+    return {
+      title: titleOnly || titleFromUrl(parsedUrl) || 'Untitled link',
+      url: parsedUrl,
+      source: sourceLabelFromUrl(parsedUrl),
+      category: inferCategory({ title: titleOnly || parsedUrl }),
+      summary: 'Quick-added from the capture field so good stuff gets into the feed with almost no friction.'
+    };
+  }
+
+  return {
+    title: trimmed,
+    url: '',
+    source: 'Quick capture',
+    category: inferCategory({ title: trimmed }),
+    summary: 'Quick-added manually to your private feed.'
+  };
+}
+
 function scoreCard(card: ArticleCard, feedState: FeedState): RankedArticleCard {
   const reasons: string[] = [];
   let score = 0;
@@ -186,6 +226,7 @@ function scoreCard(card: ArticleCard, feedState: FeedState): RankedArticleCard {
 
 export default function HomePage() {
   const [feedState, setFeedState] = useState<FeedState>(() => loadState());
+  const [quickCapture, setQuickCapture] = useState('');
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [category, setCategory] = useState<ArticleCard['category']>('Ideas');
@@ -263,16 +304,21 @@ export default function HomePage() {
     persist(next);
   }
 
-  function addLink() {
-    if (!title.trim()) return;
+  function addLink(overrides?: Partial<ArticleCard>) {
+    const nextTitle = overrides?.title ?? title.trim();
+    const nextUrl = overrides?.url ?? url.trim();
+    const nextCategory = overrides?.category ?? category;
+
+    if (!nextTitle) return;
+
     const nextCard: ArticleCard = {
       id: `inbox-${Date.now()}`,
-      category,
-      title: title.trim(),
-      source: url.trim() || 'Manual inbox',
-      summary: 'Saved manually to your private good-scroll feed.',
-      readMinutes: 8,
-      url: url.trim() || undefined,
+      category: nextCategory,
+      title: nextTitle,
+      source: overrides?.source ?? (nextUrl || 'Manual inbox'),
+      summary: overrides?.summary ?? 'Saved manually to your private good-scroll feed.',
+      readMinutes: overrides?.readMinutes ?? 8,
+      url: nextUrl || undefined,
       createdAt: new Date().toISOString()
     };
 
@@ -281,9 +327,22 @@ export default function HomePage() {
       inbox: [nextCard, ...feedState.inbox]
     });
 
+    setQuickCapture('');
     setTitle('');
     setUrl('');
     setCategory('Ideas');
+  }
+
+  function submitQuickCapture() {
+    const parsed = parseQuickAddInput(quickCapture);
+    if (!parsed) return;
+    addLink(parsed);
+  }
+
+  function onQuickCaptureKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    submitQuickCapture();
   }
 
   async function importFeed() {
@@ -433,8 +492,23 @@ export default function HomePage() {
           <div>
             <p className="eyebrow">saved-link inbox</p>
             <h2>Drop something good in</h2>
+            <p className="sub">Quick capture first, full edit only when you actually need it.</p>
           </div>
         </div>
+
+        <div className="quickCaptureRow">
+          <input
+            value={quickCapture}
+            onChange={(e) => setQuickCapture(e.target.value)}
+            onKeyDown={onQuickCaptureKeyDown}
+            placeholder="Paste a URL or write title + URL"
+            inputMode="url"
+          />
+          <button className="primary" onClick={submitQuickCapture}>Quick add</button>
+        </div>
+
+        <p className="helperText helperTight">Paste a raw link and Good Scroll will infer a title, source, and likely category for you.</p>
+
         <div className="inboxForm">
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL (optional)" />
@@ -445,7 +519,7 @@ export default function HomePage() {
             <option>Paper</option>
             <option>Essay</option>
           </select>
-          <button className="primary" onClick={addLink}>Add to feed</button>
+          <button className="primary" onClick={() => addLink()}>Add with details</button>
         </div>
       </section>
 
