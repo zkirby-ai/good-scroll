@@ -42,6 +42,9 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   gap: 12px;
   margin-bottom: 12px;
 }
+.statsGridTriple {
+  grid-template-columns: repeat(3, 1fr);
+}
 .statCard { padding: 18px; }
 .statCard span { color: var(--muted); display: block; }
 .statCard strong { display: block; margin-top: 8px; font-size: 1.9rem; }
@@ -132,6 +135,14 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   word-break: break-word;
   font-size: 0.92rem;
 }
+.feedSection {
+  display: grid;
+  gap: 12px;
+}
+.feedSectionHeader {
+  display: grid;
+  gap: 12px;
+}
 .viewToggle {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -140,6 +151,21 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
 }
 .toggleButton {
   min-height: 44px;
+}
+.viewToggle.compact .toggleButton {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 14px;
+}
+.viewToggle.compact .toggleButton span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+.viewToggle.compact .toggleButton.active span {
+  color: rgba(255,255,255,0.84);
 }
 .focusCard {
   background: linear-gradient(180deg, rgba(158,216,255,0.08), rgba(20, 28, 54, 0.86));
@@ -164,7 +190,8 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   padding: 0 16px;
 }
 @media (max-width: 520px) {
-  .statsGrid { grid-template-columns: 1fr 1fr; }
+  .statsGrid,
+  .statsGridTriple { grid-template-columns: 1fr 1fr 1fr; }
   .actionGrid { grid-template-columns: 1fr; }
   .focusMeta { flex-direction: column; }
 }

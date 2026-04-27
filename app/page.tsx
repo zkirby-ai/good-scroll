@@ -29,6 +29,7 @@ type RssImportItem = {
 };
 
 type ViewMode = 'feed' | 'queue' | 'focus';
+type FeedFilter = 'all' | 'unread' | 'saved';
 
 const seedCards: ArticleCard[] = [
   {
@@ -127,6 +128,7 @@ export default function HomePage() {
   const [feedStatus, setFeedStatus] = useState<string>('');
   const [isImportingFeed, setIsImportingFeed] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('feed');
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
 
   function persist(next: FeedState) {
     setFeedState(next);
@@ -138,12 +140,21 @@ export default function HomePage() {
     () => cards.filter((card) => !feedState.dismissed.includes(card.id)),
     [cards, feedState.dismissed]
   );
+  const unreadCards = useMemo(
+    () => visibleCards.filter((card) => !feedState.read.includes(card.id)),
+    [visibleCards, feedState.read]
+  );
   const savedCards = useMemo(
     () => feedState.saved
       .map((id) => visibleCards.find((card) => card.id === id))
       .filter((card): card is ArticleCard => Boolean(card)),
     [feedState.saved, visibleCards]
   );
+  const filteredFeedCards = useMemo(() => {
+    if (feedFilter === 'saved') return savedCards;
+    if (feedFilter === 'unread') return unreadCards;
+    return visibleCards;
+  }, [feedFilter, savedCards, unreadCards, visibleCards]);
   const unreadSavedCards = useMemo(
     () => savedCards.filter((card) => !feedState.read.includes(card.id)),
     [savedCards, feedState.read]
@@ -152,6 +163,7 @@ export default function HomePage() {
 
   const savedCount = feedState.saved.length;
   const readCount = feedState.read.length;
+  const unreadCount = unreadCards.length;
 
   function markSaved(id: string) {
     const next = {
@@ -289,7 +301,11 @@ export default function HomePage() {
         <p className="sub">Actually scrollable now — but only with things that are worth your attention.</p>
       </section>
 
-      <section className="statsGrid">
+      <section className="statsGrid statsGridTriple">
+        <article className="card statCard">
+          <span>Unread</span>
+          <strong>{unreadCount}</strong>
+        </article>
         <article className="card statCard">
           <span>Saved</span>
           <strong>{savedCount}</strong>
@@ -420,16 +436,48 @@ export default function HomePage() {
       ) : null}
 
       {viewMode === 'feed' ? (
-        <section className="feed">
-          {visibleCards.length ? (
-            visibleCards.map((card) => renderArticleCard(card))
-          ) : (
-            <section className="card emptyCard">
-              <p className="eyebrow">feed cleared</p>
-              <h2>No more good things queued.</h2>
-              <p className="sub">That’s a good problem. Drop another link into the inbox.</p>
-            </section>
-          )}
+        <section className="feedSection">
+          <div className="feedSectionHeader">
+            <div>
+              <p className="eyebrow">feed filters</p>
+              <h2>Skim by intent, not just by whatever is next.</h2>
+            </div>
+            <div className="viewToggle compact" role="tablist" aria-label="Feed filters">
+              <button className={feedFilter === 'all' ? 'toggleButton active' : 'toggleButton'} onClick={() => setFeedFilter('all')}>
+                All <span>{visibleCards.length}</span>
+              </button>
+              <button className={feedFilter === 'unread' ? 'toggleButton active' : 'toggleButton'} onClick={() => setFeedFilter('unread')}>
+                Unread <span>{unreadCount}</span>
+              </button>
+              <button className={feedFilter === 'saved' ? 'toggleButton active' : 'toggleButton'} onClick={() => setFeedFilter('saved')}>
+                Saved <span>{savedCount}</span>
+              </button>
+            </div>
+          </div>
+
+          <section className="feed">
+            {filteredFeedCards.length ? (
+              filteredFeedCards.map((card) => renderArticleCard(card))
+            ) : (
+              <section className="card emptyCard">
+                <p className="eyebrow">{feedFilter === 'saved' ? 'saved queue' : feedFilter === 'unread' ? 'unread cleared' : 'feed cleared'}</p>
+                <h2>
+                  {feedFilter === 'saved'
+                    ? 'Nothing saved yet.'
+                    : feedFilter === 'unread'
+                      ? 'No unread items left in the feed.'
+                      : 'No more good things queued.'}
+                </h2>
+                <p className="sub">
+                  {feedFilter === 'saved'
+                    ? 'Save anything genuinely worth returning to and it will stay easy to find.'
+                    : feedFilter === 'unread'
+                      ? 'That’s the dream. Import a feed or drop in another good link.'
+                      : 'That’s a good problem. Drop another link into the inbox.'}
+                </p>
+              </section>
+            )}
+          </section>
         </section>
       ) : null}
     </main>
