@@ -28,6 +28,11 @@ type RssImportItem = {
   contentSnippet?: string;
 };
 
+type RankedArticleCard = ArticleCard & {
+  score: number;
+  reasons: string[];
+};
+
 type ViewMode = 'feed' | 'queue' | 'focus';
 type FeedFilter = 'all' | 'unread' | 'saved';
 
@@ -69,6 +74,14 @@ const seedCards: ArticleCard[] = [
     url: 'https://example.com/attention-rituals'
   }
 ];
+
+const categoryWeights: Record<ArticleCard['category'], number> = {
+  Paper: 20,
+  Bio: 18,
+  Essay: 15,
+  Policy: 14,
+  Ideas: 10
+};
 
 function emptyState(): FeedState {
   return { saved: [], dismissed: [], read: [], inbox: [], rssFeeds: [] };
@@ -119,6 +132,58 @@ function sourceLabelFromUrl(input: string) {
   }
 }
 
+function scoreCard(card: ArticleCard, feedState: FeedState): RankedArticleCard {
+  const reasons: string[] = [];
+  let score = 0;
+
+  if (!feedState.read.includes(card.id)) {
+    score += 35;
+    reasons.push('Unread');
+  }
+
+  if (feedState.saved.includes(card.id)) {
+    score += 28;
+    reasons.push('You saved it');
+  }
+
+  score += categoryWeights[card.category];
+  reasons.push(`${card.category} signal`);
+
+  if (card.readMinutes <= 12) {
+    score += 12;
+    reasons.push('Quick win');
+  } else if (card.readMinutes <= 20) {
+    score += 6;
+    reasons.push('Worth a session');
+  }
+
+  if (card.createdAt) {
+    const ageHours = (Date.now() - new Date(card.createdAt).getTime()) / (1000 * 60 * 60);
+    if (ageHours <= 36) {
+      score += 10;
+      reasons.push('Fresh');
+    } else if (ageHours <= 168) {
+      score += 4;
+    }
+  }
+
+  const source = card.source.toLowerCase();
+  if (/(paper|review|journal|essay|longform|substack|research)/.test(source)) {
+    score += 8;
+    reasons.push('High-signal source');
+  }
+
+  if (feedState.read.includes(card.id)) {
+    score -= 26;
+  }
+
+  return {
+    ...card,
+    score,
+    reasons: reasons.slice(0, 3)
+  };
+}
+
 export default function HomePage() {
   const [feedState, setFeedState] = useState<FeedState>(() => loadState());
   const [title, setTitle] = useState('');
@@ -140,26 +205,34 @@ export default function HomePage() {
     () => cards.filter((card) => !feedState.dismissed.includes(card.id)),
     [cards, feedState.dismissed]
   );
+  const rankedCards = useMemo(
+    () => visibleCards
+      .map((card) => scoreCard(card, feedState))
+      .sort((a, b) => b.score - a.score),
+    [visibleCards, feedState]
+  );
   const unreadCards = useMemo(
-    () => visibleCards.filter((card) => !feedState.read.includes(card.id)),
-    [visibleCards, feedState.read]
+    () => rankedCards.filter((card) => !feedState.read.includes(card.id)),
+    [rankedCards, feedState.read]
   );
   const savedCards = useMemo(
     () => feedState.saved
-      .map((id) => visibleCards.find((card) => card.id === id))
-      .filter((card): card is ArticleCard => Boolean(card)),
-    [feedState.saved, visibleCards]
+      .map((id) => rankedCards.find((card) => card.id === id))
+      .filter((card): card is RankedArticleCard => Boolean(card))
+      .sort((a, b) => b.score - a.score),
+    [feedState.saved, rankedCards]
   );
   const filteredFeedCards = useMemo(() => {
     if (feedFilter === 'saved') return savedCards;
     if (feedFilter === 'unread') return unreadCards;
-    return visibleCards;
-  }, [feedFilter, savedCards, unreadCards, visibleCards]);
+    return rankedCards;
+  }, [feedFilter, savedCards, unreadCards, rankedCards]);
   const unreadSavedCards = useMemo(
     () => savedCards.filter((card) => !feedState.read.includes(card.id)),
     [savedCards, feedState.read]
   );
   const focusedCard = unreadSavedCards[0] ?? savedCards[0] ?? null;
+  const topCard = rankedCards[0] ?? null;
 
   const savedCount = feedState.saved.length;
   const readCount = feedState.read.length;
@@ -264,7 +337,7 @@ export default function HomePage() {
     }
   }
 
-  function renderArticleCard(card: ArticleCard) {
+  function renderArticleCard(card: RankedArticleCard) {
     const isSaved = feedState.saved.includes(card.id);
     const isRead = feedState.read.includes(card.id);
 
@@ -276,6 +349,10 @@ export default function HomePage() {
         </div>
         <h2>{card.title}</h2>
         <p className="summary">{card.summary}</p>
+        <div className="cardReasonRow">
+          <span className="rankChip">Score {card.score}</span>
+          <span className="reasonText">{card.reasons.join(' • ')}</span>
+        </div>
         <div className="sourceRow">
           <span>{card.source}</span>
           {card.url ? <a href={card.url} target="_blank" rel="noreferrer">Open</a> : null}
@@ -315,6 +392,22 @@ export default function HomePage() {
           <strong>{readCount}</strong>
         </article>
       </section>
+
+      {topCard ? (
+        <section className="card bestNowCard">
+          <div>
+            <p className="eyebrow">best now</p>
+            <h2>{topCard.title}</h2>
+            <p className="sub">{topCard.reasons.join(' • ')}</p>
+          </div>
+          <div className="bestNowActions">
+            {topCard.url ? <a className="primaryLink" href={topCard.url} target="_blank" rel="noreferrer">Open top pick</a> : null}
+            <button className={feedState.saved.includes(topCard.id) ? 'secondary active' : 'secondary'} onClick={() => markSaved(topCard.id)}>
+              {feedState.saved.includes(topCard.id) ? 'Saved already' : 'Save top pick'}
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="card focusSummaryCard">
         <div>
@@ -399,6 +492,10 @@ export default function HomePage() {
               <p className="eyebrow">up next</p>
               <h2>{focusedCard.title}</h2>
               <p className="summary">{focusedCard.summary}</p>
+              <div className="cardReasonRow">
+                <span className="rankChip">Score {focusedCard.score}</span>
+                <span className="reasonText">{focusedCard.reasons.join(' • ')}</span>
+              </div>
               <div className="focusMeta">
                 <span>{focusedCard.source}</span>
                 <span>{feedState.read.includes(focusedCard.id) ? 'Already read' : 'Unread and queued'}</span>
@@ -441,10 +538,11 @@ export default function HomePage() {
             <div>
               <p className="eyebrow">feed filters</p>
               <h2>Skim by intent, not just by whatever is next.</h2>
+              <p className="sub">The feed now auto-ranks for signal, freshness, and likely usefulness so the best stuff rises first.</p>
             </div>
             <div className="viewToggle compact" role="tablist" aria-label="Feed filters">
               <button className={feedFilter === 'all' ? 'toggleButton active' : 'toggleButton'} onClick={() => setFeedFilter('all')}>
-                All <span>{visibleCards.length}</span>
+                All <span>{rankedCards.length}</span>
               </button>
               <button className={feedFilter === 'unread' ? 'toggleButton active' : 'toggleButton'} onClick={() => setFeedFilter('unread')}>
                 Unread <span>{unreadCount}</span>

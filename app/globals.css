@@ -48,7 +48,7 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
 .statCard { padding: 18px; }
 .statCard span { color: var(--muted); display: block; }
 .statCard strong { display: block; margin-top: 8px; font-size: 1.9rem; }
-.inboxCard, .focusSummaryCard { padding: 18px; margin-bottom: 12px; }
+.inboxCard, .focusSummaryCard, .bestNowCard { padding: 18px; margin-bottom: 12px; }
 .cardHeader { margin-bottom: 12px; }
 .inboxForm { display: grid; gap: 10px; }
 .inboxForm input, .inboxForm select {
@@ -70,7 +70,7 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   gap: 12px;
   align-items: center;
 }
-.pill, .metaChip {
+.pill, .metaChip, .rankChip {
   display: inline-block;
   padding: 8px 12px;
   border-radius: 999px;
@@ -80,6 +80,20 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   font-size: 0.8rem;
 }
 .summary { margin: 0 0 14px; color: var(--muted); font-size: 1rem; line-height: 1.45; }
+.cardReasonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.rankChip {
+  background: rgba(158,216,255,0.14);
+}
+.reasonText {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
 .sourceRow {
   margin-bottom: 16px;
   display: flex;
@@ -93,17 +107,17 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
 }
-.actionGrid button, .inboxForm .primary, .focusActions button, .primaryLink, .toggleButton {
+.actionGrid button, .inboxForm .primary, .focusActions button, .bestNowActions button, .primaryLink, .toggleButton {
   border: 0;
   border-radius: 16px;
   min-height: 52px;
   font-weight: 700;
   color: var(--text);
 }
-.actionGrid .secondary, .focusActions .secondary, .toggleButton {
+.actionGrid .secondary, .focusActions .secondary, .bestNowActions .secondary, .toggleButton {
   background: rgba(255,255,255,0.06);
 }
-.actionGrid .secondary.active, .focusActions .secondary.active, .toggleButton.active {
+.actionGrid .secondary.active, .focusActions .secondary.active, .bestNowActions .secondary.active, .toggleButton.active {
   background: rgba(158,216,255,0.22);
 }
 .inboxForm .primary, .primaryLink {
@@ -167,6 +181,15 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
 .viewToggle.compact .toggleButton.active span {
   color: rgba(255,255,255,0.84);
 }
+.bestNowCard {
+  display: grid;
+  gap: 14px;
+  background: linear-gradient(180deg, rgba(142,240,200,0.08), rgba(20, 28, 54, 0.86));
+}
+.bestNowActions, .focusActions {
+  display: grid;
+  gap: 10px;
+}
 .focusCard {
   background: linear-gradient(180deg, rgba(158,216,255,0.08), rgba(20, 28, 54, 0.86));
 }
@@ -177,10 +200,6 @@ h2 { margin: 14px 0 10px; font-size: 1.55rem; line-height: 1.08; }
   margin-bottom: 18px;
   color: var(--muted);
   font-size: 0.92rem;
-}
-.focusActions {
-  display: grid;
-  gap: 10px;
 }
 .primaryLink {
   display: inline-flex;
