@@ -1,10 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-export const size = {
-  width: 512,
-  height: 512
-};
-
+export const size = { width: 512, height: 512 };
 export const contentType = 'image/png';
 
 export default function Icon() {
@@ -17,106 +13,52 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#0b1117',
-          borderRadius: 116,
-          position: 'relative',
-          overflow: 'hidden'
+          background:
+            'radial-gradient(80% 60% at 30% 20%, #1a1612 0%, #0b0a08 60%, #050403 100%)',
+          position: 'relative'
         }}
       >
+        {/* warm glow */}
         <div
           style={{
             position: 'absolute',
-            inset: 42,
-            borderRadius: 96,
-            background: 'linear-gradient(180deg, #141c24 0%, #0e141b 100%)',
-            border: '4px solid rgba(245, 244, 240, 0.08)'
+            top: 70,
+            right: 70,
+            width: 140,
+            height: 140,
+            borderRadius: 999,
+            background: 'radial-gradient(circle, rgba(232,144,64,0.55) 0%, rgba(232,144,64,0) 70%)'
           }}
         />
+        {/* serif G */}
         <div
           style={{
-            width: 220,
-            height: 280,
-            borderRadius: 40,
-            background: '#101821',
-            display: 'flex',
-            position: 'relative',
-            overflow: 'hidden',
-            boxShadow: '0 16px 50px rgba(0,0,0,0.32)'
+            fontSize: 320,
+            fontWeight: 500,
+            fontFamily: 'serif',
+            fontStyle: 'italic',
+            color: '#f4ede0',
+            letterSpacing: '-0.06em',
+            lineHeight: 1,
+            transform: 'translateY(-6px)',
+            display: 'flex'
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              clipPath: 'polygon(0 0, 100% 0, 100% 67%, 50% 58%, 0 63%)',
-              background: 'linear-gradient(180deg, #16212c 0%, #0f1720 100%)'
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: 36,
-              right: 48,
-              top: 76,
-              height: 18,
-              borderRadius: 999,
-              background: '#8cf3c9'
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: 36,
-              right: 86,
-              top: 130,
-              height: 18,
-              borderRadius: 999,
-              background: 'rgba(140, 243, 201, 0.92)'
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: 36,
-              right: 122,
-              top: 184,
-              height: 18,
-              borderRadius: 999,
-              background: 'rgba(140, 243, 201, 0.82)'
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 84,
-              background: 'linear-gradient(90deg, #8cf3c9 0%, #4bc0a1 100%)',
-              clipPath: 'polygon(0 18%, 34% 0, 58% 8%, 100% 30%, 100% 100%, 0 100%)'
-            }}
-          />
+          G
         </div>
+        {/* accent dot */}
         <div
           style={{
             position: 'absolute',
-            top: 88,
-            right: 104,
-            width: 62,
-            height: 62,
+            left: 360,
+            top: 230,
+            width: 36,
+            height: 36,
             borderRadius: 999,
-            background: '#8cf3c9',
-            color: '#0b1117',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 42,
-            fontWeight: 700,
-            boxShadow: '0 0 32px rgba(140,243,201,0.35)'
+            background: '#e89040',
+            boxShadow: '0 0 30px rgba(232,144,64,0.7)'
           }}
-        >
-          +
-        </div>
+        />
       </div>
     ),
     size
